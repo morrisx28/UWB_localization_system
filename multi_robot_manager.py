@@ -11,21 +11,13 @@ import threading
 import traceback
 import time
 from multi_robot_datatype import BatteryState, OverViewState, JointStates
-    
+
 
 class RobotStatusManager():
     
     def __init__(self):  
 
         """ private definition """
-        self.arg_parser_ = argparse.ArgumentParser(prog='robot-manager',
-                                                description='zenoh robot manager')
-        self.arg_parser_.add_argument('-e', '--connect', type=str, metavar='ENDPOINT', action='append')
-        self.arg_parser_.add_argument('-l', '--listen', type=str, metavar='ENDPOINT', action='append')
-        self.arg_parser_.add_argument('-m', '--mode', type=str, default='client')
-        self.arg_parser_.add_argument('-c', '--config', type=str, metavar='FILE')
-        self.arg_parser_.add_argument('-robot', '--robot', type=str, default='turtlebot', choices=['turtlebot', 'spider'])
-        self.arg_parser_.add_argument('-id', '--id', type=str, default='1')
         self.zenoh_config_ = None
         self.zenoh_session_ = None
         self.battery_state_sub_ = None
@@ -39,9 +31,23 @@ class RobotStatusManager():
         """ public definition """
 
         self.zenohInit()
+
+    def setArgParser(self) -> argparse.ArgumentParser:
+        arg_parser = argparse.ArgumentParser(prog='robot-manager',
+                                                description='zenoh robot manager')
+        arg_parser.add_argument('-e', '--connect', type=str, metavar='ENDPOINT', action='append')
+        arg_parser.add_argument('-l', '--listen', type=str, metavar='ENDPOINT', action='append')
+        arg_parser.add_argument('-m', '--mode', type=str, default='client')
+        arg_parser.add_argument('-c', '--config', type=str, metavar='FILE')
+        arg_parser.add_argument('-robot', '--robot', type=str, default='turtlebot', choices=['turtlebot', 'spider'])
+        arg_parser.add_argument('-id', '--id', type=str, default='1')
+
+        return arg_parser
+        
+        
     
     def zenohInit(self):
-        zenoh_arg = self.arg_parser_.parse_args()
+        zenoh_arg = self.setArgParser().parse_args()
         self.zenoh_config_ = zenoh.config_from_file(zenoh_arg.config) if zenoh_arg.config is not None else zenoh.Config()
         if zenoh_arg.mode is not None:
             self.zenoh_config_.insert_json5(zenoh.config.MODE_KEY, json.dumps(zenoh_arg.mode))
@@ -77,7 +83,7 @@ class RobotStatusManager():
 
     def generateOverViewState(self) -> OverViewState:
         overview_state = OverViewState(battery_voltage = float32(self.battery_state.voltage),
-                                            battery_percentage = float32(self.battery_state.capacity),
+                                            battery_percentage = float32(self.battery_state.percentage),
                                             battery_capacity = float32(self.battery_state.capacity),
                                             joint_name = self.joint_state.name,
                                             joint_velocity = self.joint_state.velocity)
