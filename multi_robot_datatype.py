@@ -51,3 +51,16 @@ class OverViewState(IdlStruct, typename="OverViewState"):
     battery_percentage: float32
     joint_name: List[str]
     joint_velocity: List[float64]
+
+@dataclass
+class PoseStamped(IdlStruct, typename="PoseStemped"):
+    stamp_sec: uint32
+    stamp_nsec: uint32
+    frame_id: str
+    point_x: float64
+    point_y: float64
+    point_z: float64
+    quat_x: float64
+    quat_y: float64
+    quat_z: float64
+    quat_w: float64
