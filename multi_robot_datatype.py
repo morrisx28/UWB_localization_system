@@ -53,6 +53,11 @@ class OverViewState(IdlStruct, typename="OverViewState"):
     joint_velocity: List[float64]
 
 @dataclass
+class UWBState(IdlStruct, typename="UWBState"):
+    position_x: float64
+    position_y: float64
+
+@dataclass
 class PoseStamped(IdlStruct, typename="PoseStemped"):
     stamp_sec: uint32
     stamp_nsec: uint32

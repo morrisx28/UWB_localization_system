@@ -10,7 +10,8 @@ from typing import List
 import threading
 import traceback
 import time
-from multi_robot_datatype import BatteryState, OverViewState, JointStates
+from multi_robot_datatype import BatteryState, OverViewState, JointStates, UWBState
+from uwb_manager import UWBLocalizationSystem
 
 
 class RobotStatusManager():
@@ -26,11 +27,15 @@ class RobotStatusManager():
 
         self.battery_state = None
         self.joint_state = None
+        self.uwb_state = None
+
+        self.uwb_system = UWBLocalizationSystem()
 
         self.input_prefix_ = 'rt' #default setting
         """ public definition """
 
         self.zenohInit()
+
 
     def setArgParser(self) -> argparse.ArgumentParser:
         arg_parser = argparse.ArgumentParser(prog='robot-manager',
@@ -68,6 +73,7 @@ class RobotStatusManager():
     def jointStateListener(self, sample):
         self.joint_state = JointStates.deserialize(sample.payload)
         # print('[name: {}, velocity: {}]'.format(self.joint_state.name, self.joint_state.velocity))
+    
 
     def getBatteryState(self) -> BatteryState:
         if self.battery_state is not None:
@@ -76,6 +82,9 @@ class RobotStatusManager():
     def getJointState(self) -> JointStates:
         if self.joint_state is not None:
             return self.joint_state
+        
+    def pubUWBState(self):
+        self.zenoh_session_.put('rt/{}/uwb_state'.format(self.output_prefix_), self.generateUWBState().serialize())
     
     def pubOverViewState(self):
         self.zenoh_session_.put('rt/{}/overview_state'.format(self.output_prefix_), self.generateOverViewState().serialize())
@@ -89,6 +98,12 @@ class RobotStatusManager():
                                             joint_velocity = self.joint_state.velocity)
         print(overview_state)
         return overview_state
+    
+    def generateUWBState(self):
+        state = self.uwb_system.getTagPosition()
+        uwb_state = UWBState(position_x = state[0],
+                             position_y = state[1])
+        return uwb_state
 
     def pubRobotStatus(self):
         print("Robot Status Start Publish....")
@@ -96,6 +111,7 @@ class RobotStatusManager():
         while self.update_thread_enable_:
             if self.battery_state is not None and self.joint_state is not None:
                 self.pubOverViewState()
+            self.pubUWBState()
             time.sleep(0.01)
         print("Robot Status Publish end")
             
@@ -103,10 +119,13 @@ class RobotStatusManager():
     def activeStatusManager(self):
         zenoh.init_logger()
         print("Initial Zenoh...")
+
+        self.uwb_system.startLocalizeTag()
+
         self.update_thread_enable = True
         self.zenoh_session_ = zenoh.open(self.zenoh_config_)
-        self.battery_state_sub_ = self.zenoh_session_.declare_subscriber('{}/battery_state'.format(self.input_prefix_), self.batteryStateListener)
-        self.joint_state_sub_ = self.zenoh_session_.declare_subscriber('{}/joint_states'.format(self.input_prefix_), self.jointStateListener)
+        # self.battery_state_sub_ = self.zenoh_session_.declare_subscriber('{}/battery_state'.format(self.input_prefix_), self.batteryStateListener)
+        # self.joint_state_sub_ = self.zenoh_session_.declare_subscriber('{}/joint_states'.format(self.input_prefix_), self.jointStateListener)
         self.thread_pub_status = threading.Thread(
             target=self.pubRobotStatus,
             daemon= True
@@ -117,8 +136,8 @@ class RobotStatusManager():
     def closeStatusManager(self):
         if self.update_thread_enable_:
             self.update_thread_enable_ = False
-        self.battery_state_sub_.undeclare()
-        self.joint_state_sub_.undeclare()
+        # self.battery_state_sub_.undeclare()
+        # self.joint_state_sub_.undeclare()
         self.zenoh_session_.close()
     
 
