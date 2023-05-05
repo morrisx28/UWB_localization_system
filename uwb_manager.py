@@ -19,7 +19,7 @@ class UWBManager():
         while self.active_flag_:
             if self.serial_port_.is_open:
                 raw_data = self.serial_port_.readline()
-                if len(raw_data) == 16:  # filting data
+                if len(raw_data) == 16:  # data length should be 16 bytes
                     self.tag_distance = self.processRawData(raw_data)
                     # print("distace: {} distance: {} distance: {} ".format(self.tag_distance[0], self.tag_distance[1], self.tag_distance[2]))
                 time.sleep(0.01)
@@ -69,7 +69,8 @@ class UWBLocalizationSystem():
 
     def caculateTagPosition(self):
         tag_dis = self.uwb_manager_.getUWBDistance()
-        self.processMLE(tag_dis)
+        if not any(tag_dis) == 0:
+            self.processMLE(tag_dis)
     
     def processMLE(self, tag_dis):
         A = np.array([[2 * (self.anchor_pos_list[0][0] - self.anchor_pos_list[-1][0]),2 * (self.anchor_pos_list[0][1] - self.anchor_pos_list[-1][1])],
