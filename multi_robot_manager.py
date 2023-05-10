@@ -102,7 +102,8 @@ class RobotStatusManager():
     def generateUWBState(self):
         state = self.uwb_system.getTagPosition()
         uwb_state = UWBState(position_x = state[0],
-                             position_y = state[1])
+                             position_y = state[1],
+                             tag_id = state[2])
         return uwb_state
 
     def pubRobotStatus(self):
@@ -126,6 +127,7 @@ class RobotStatusManager():
         self.zenoh_session_ = zenoh.open(self.zenoh_config_)
         # self.battery_state_sub_ = self.zenoh_session_.declare_subscriber('{}/battery_state'.format(self.input_prefix_), self.batteryStateListener)
         # self.joint_state_sub_ = self.zenoh_session_.declare_subscriber('{}/joint_states'.format(self.input_prefix_), self.jointStateListener)
+        time.sleep(1) # wait for uwb system poll data
         self.thread_pub_status = threading.Thread(
             target=self.pubRobotStatus,
             daemon= True

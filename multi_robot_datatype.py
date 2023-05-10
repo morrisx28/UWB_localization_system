@@ -56,6 +56,7 @@ class OverViewState(IdlStruct, typename="OverViewState"):
 class UWBState(IdlStruct, typename="UWBState"):
     position_x: float64
     position_y: float64
+    tag_id: int32
 
 @dataclass
 class PoseStamped(IdlStruct, typename="PoseStemped"):
