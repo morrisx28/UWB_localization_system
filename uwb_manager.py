@@ -1,8 +1,9 @@
 import numpy as np
-import serial, time
+import serial, time, datetime
 import threading
 import traceback
 import math
+import pickle
 
 class UWBManager():
 
@@ -21,7 +22,6 @@ class UWBManager():
                 if len(raw_data) == 16:  # data length should be 16 bytes
                     self.tag_data = self.processRawData(raw_data)
                     # print("distace: {} distance: {} distance: {} ".format(self.tag_distance[0], self.tag_distance[1], self.tag_distance[2]))
-                time.sleep(0.001)
             
     def processRawData(self, raw_data) -> list:
         distance_data = [0, 0, 0, 0]  
@@ -62,6 +62,8 @@ class UWBLocalizationSystem():
 
         self.tag_data = None
         self.anchor_pos_list = list() # max 4 anchor pos
+        self.save_pos_x = list()
+        self.save_pos_y = list()
         self.MAX_ANCHOR_NUM = 4
         self.activateUWBManager()
     
@@ -71,8 +73,11 @@ class UWBLocalizationSystem():
 
     def caculateTagPosition(self):
         tag_data = self.uwb_manager_.getUWBDistance()
+        if tag_data is None:
+            return False
         if not any(tag_data) == 0:
             self.processMLE(tag_data)
+        return True
     
     def processMLE(self, tag_dis):
         A = np.array([[2 * (self.anchor_pos_list[0][0] - self.anchor_pos_list[-1][0]),2 * (self.anchor_pos_list[0][1] - self.anchor_pos_list[-1][1])],
@@ -83,7 +88,9 @@ class UWBLocalizationSystem():
         X = np.dot(temp_X, b)
         self.tag_data =  [X.T[0,0], X.T[0,1], tag_dis[3]]
         print("tag X: {} Y: {} ID: {}".format(self.tag_data[0], self.tag_data[1], self.tag_data[2]))
-    
+        self.save_pos_x.append(self.tag_data[0])
+        self.save_pos_y.append(self.tag_data[1])
+
     def setAanchorPos(self, anchor_x, anchor_y):
         if len(self.anchor_pos_list) < self.MAX_ANCHOR_NUM:
             anchor_pos = [0, 0]
@@ -99,15 +106,18 @@ class UWBLocalizationSystem():
     
     def processLoop(self):
         while not self.stop_localize_thread_:
-            self.caculateTagPosition()
+            connect_ok = self.caculateTagPosition()
+            if not connect_ok:
+                self.stop_localize_thread_ = False
+                print(" UWB Master Connection Lost ")
             time.sleep(0.01)
 
     
     def startLocalizeTag(self):
         if self.uwb_is_active_:
             self.setAanchorPos(0,0) # anchor 0
-            self.setAanchorPos(1.13, 6.12) # anchor 1
-            self.setAanchorPos(-4.14, 6) # anchor 2
+            self.setAanchorPos(-0.5, 3.65) # anchor 1
+            self.setAanchorPos(-4.34, 1.13) # anchor 2
             self.stop_localize_thread_ = False
             self.track_data_thread = threading.Thread(
                 target=self.processLoop,
@@ -116,6 +126,16 @@ class UWBLocalizationSystem():
             self.track_data_thread.start()
         else:
             print("UWB sensor is not activate")
+    
+    def saveData(self):
+        fileName = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
+        fileName = './data/' + fileName
+        with open(fileName + ".x_posdata", 'wb+') as f:
+            pickle.dump(self.save_pos_x,f)
+        with open(fileName + ".y_posdata", 'wb+') as f:
+            pickle.dump(self.save_pos_y,f)
+
+        
 
     def closeSystem(self):
         self.stop_localize_thread_ = True
@@ -132,6 +152,7 @@ if __name__ == "__main__":
         try:
             cmd = input("CMD: ")
             if cmd == "q":
+                manager.saveData()
                 break
         except Exception as e:
             traceback.print_exc()

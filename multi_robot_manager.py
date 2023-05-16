@@ -16,7 +16,7 @@ from uwb_manager import UWBLocalizationSystem
 
 class RobotStatusManager():
     
-    def __init__(self):  
+    def __init__(self, is_uwb_master = True):  
 
         """ private definition """
         self.zenoh_config_ = None
@@ -28,8 +28,7 @@ class RobotStatusManager():
         self.battery_state = None
         self.joint_state = None
         self.uwb_state = None
-
-        self.uwb_system = UWBLocalizationSystem()
+        self.is_uwb_master = is_uwb_master
 
         self.input_prefix_ = 'rt' #default setting
         """ public definition """
@@ -112,7 +111,8 @@ class RobotStatusManager():
         while self.update_thread_enable_:
             if self.battery_state is not None and self.joint_state is not None:
                 self.pubOverViewState()
-            self.pubUWBState()
+            if self.is_uwb_master:
+                self.pubUWBState()
             time.sleep(0.01)
         print("Robot Status Publish end")
             
@@ -120,8 +120,9 @@ class RobotStatusManager():
     def activeStatusManager(self):
         zenoh.init_logger()
         print("Initial Zenoh...")
-
-        self.uwb_system.startLocalizeTag()
+        if self.is_uwb_master:
+            self.uwb_system = UWBLocalizationSystem()
+            self.uwb_system.startLocalizeTag()
 
         self.update_thread_enable = True
         self.zenoh_session_ = zenoh.open(self.zenoh_config_)
@@ -140,6 +141,7 @@ class RobotStatusManager():
             self.update_thread_enable_ = False
         # self.battery_state_sub_.undeclare()
         # self.joint_state_sub_.undeclare()
+        self.uwb_system.closeSystem()
         self.zenoh_session_.close()
     
 
