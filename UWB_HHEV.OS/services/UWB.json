@@ -1,0 +1,22 @@
+{
+    "name": "services",
+    "imports": [],
+    "services": [
+        {
+    "class": "alias",
+    "typename": "UWB",
+    "service": {
+        "class": "event",
+        "type": {
+            "class": "struct",
+            "members": {
+                "position_x": "double",
+                "position_y": "double",
+                "tag_id": "uint64"
+            }
+        }
+    }
+}
+
+    ]
+}

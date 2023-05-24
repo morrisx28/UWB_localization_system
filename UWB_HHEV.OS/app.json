@@ -1,0 +1,17 @@
+{
+    "1": {
+        "groups": [
+            {
+                "workers": 2,
+                "policy": 0,
+                "load_balance": false,
+                "runnables": {
+                    "1": {
+                        "name": "/sample/uwb_runnable",
+                        "path": "build/dist/lib/libUWB_Runnable.so"
+                    }
+                }
+            }
+        ]
+    }
+}
