@@ -10,7 +10,7 @@ class UWBManager():
     def __init__(self):
 
         self.serial_port_ = serial.Serial("/dev/ttyUSB0", 115200)
-        self.tag_data = [0, 0, 0, 0]
+        self.tag_data = None
         self.active_flag_ = False
 
         self.serial_port_.flush()
@@ -64,7 +64,9 @@ class UWBLocalizationSystem():
         self.anchor_pos_list = list() # max 4 anchor pos
         self.save_pos_x = list()
         self.save_pos_y = list()
+        self.time_out_count = 0
         self.MAX_ANCHOR_NUM = 4
+        self.TIME_OUT_COUNT = 200
         self.activateUWBManager()
     
     def activateUWBManager(self):
@@ -88,8 +90,9 @@ class UWBLocalizationSystem():
         X = np.dot(temp_X, b)
         self.tag_data =  [X.T[0,0], X.T[0,1], tag_dis[3]]
         print("tag X: {} Y: {} ID: {}".format(self.tag_data[0], self.tag_data[1], self.tag_data[2]))
-        self.save_pos_x.append(self.tag_data[0])
-        self.save_pos_y.append(self.tag_data[1])
+        # For Data Collect 
+        # self.save_pos_x.append(self.tag_data[0])
+        # self.save_pos_y.append(self.tag_data[1])
 
     def setAanchorPos(self, anchor_x, anchor_y):
         if len(self.anchor_pos_list) < self.MAX_ANCHOR_NUM:
@@ -103,14 +106,22 @@ class UWBLocalizationSystem():
     def getTagPosition(self):
         if self.tag_data is not None:
             return self.tag_data
+        else:
+            self.tag_data = [0, 0, 0]
+            return self.tag_data
     
     def processLoop(self):
         while not self.stop_localize_thread_:
             connect_ok = self.caculateTagPosition()
             if not connect_ok:
-                self.stop_localize_thread_ = False
-                print(" UWB Master Connection Lost ")
+                self.checkTimeOut()
             time.sleep(0.01)
+    
+    def checkTimeOut(self):
+        self.time_out_count += 1
+        if self.time_out_count == self.TIME_OUT_COUNT:
+            self.closeSystem()
+            print(" UWB Master Connection Lost ")
 
     
     def startLocalizeTag(self):
