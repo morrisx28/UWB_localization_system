@@ -2,7 +2,7 @@
     "1": {
         "groups": [
             {
-                "workers": 2,
+                "workers": 3,
                 "policy": 0,
                 "load_balance": false,
                 "runnables": {

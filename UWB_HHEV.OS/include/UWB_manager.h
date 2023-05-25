@@ -42,7 +42,7 @@ namespace UWB {
 
         private:
         bool is_serial_opened_ = false;
-        BlockQueue<UWBData> *uwb_data_Q_ = new BlockQueue<UWBData>();
+        BlockQueue<UWBData> *uwb_data_Q_ = new BlockQueue<UWBData>(5);
         UWBData uwb_data_;
 
         void openSerialPort();
@@ -65,7 +65,7 @@ namespace UWB {
         private:
         bool uwb_system_is_active_ = false;
         vector<AnchorPos> anchor_pos_list_;
-        BlockQueue<TAGState> *tag_state_Q_ = new BlockQueue<TAGState>();
+        BlockQueue<TAGState> *tag_state_Q_ = new BlockQueue<TAGState>(5);
         TAGState tag_state_;
 
         void caculateTagPosition();
