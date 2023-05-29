@@ -38,7 +38,7 @@ list(APPEND CMAKE_MODULE_PATH ${ACRT_SDK_LIBDIR}/cmake)
 list(APPEND CMAKE_PREFIX_PATH ${ACRT_SDK_LIBDIR}/cmake)
 
 
-set(RUNNABLE_NAME "UWB_Runnable")
+set(RUNNABLE_NAME "RunnableUWB")
 
 project(${RUNNABLE_NAME}Runnable)
 
