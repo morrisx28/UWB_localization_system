@@ -9,6 +9,8 @@
 #include "serial_port.h"
 #include "BlockQueue.h"
 
+#define MAX_ANCHOR_NUMS (int) 3
+
 using namespace std;
 
 namespace UWB {

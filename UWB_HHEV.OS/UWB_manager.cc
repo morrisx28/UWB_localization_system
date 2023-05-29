@@ -104,7 +104,7 @@ namespace UWB {
 
     void UWBLocalizeSystem::setAnchorPosition(float anchor_x, float anchor_y) {
 
-        if (anchor_pos_list_.size() < 3) {
+        if (anchor_pos_list_.size() < MAX_ANCHOR_NUMS) {
             AnchorPos anchor_pos;
             anchor_pos.x = anchor_x;
             anchor_pos.y = anchor_y;
