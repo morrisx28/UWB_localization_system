@@ -60,13 +60,14 @@ public:
         }
 
         // Start services
-        uwb_system.activeUWBSystem();
         
         if (m_uwb_stateProvider.start() != Result::OK)
         {
             ErrorLog("Start m_uwb_stateProvider failed");
             return false;
         }
+
+        uwb_system.activeUWBSystem();
 
         m_timer.reset(Millisec(200), [this]() {
             this->onTimer();
