@@ -1,4 +1,4 @@
-from multi_robot_datatype import UWBState
+from multi_robot_datatype import UWBState, OverViewState
 import zenoh
 import argparse
 import json
@@ -21,7 +21,7 @@ class ZenohTestLauncher():
         self.uwb_state_sub_ = None
         self.uwb_state = None
 
-        self.input_prefix_ = 'rt/turtlebot1'
+        self.input_prefix_ = 'rt/turtlebot'
 
         self.zenohInit()
 
@@ -35,6 +35,12 @@ class ZenohTestLauncher():
         if zenoh_arg.listen is not None:
             self.zenoh_config_.insert_json5(zenoh.config.LISTEN_KEY, json.dumps(zenoh_arg.listen))
     
+    def overviewStateListener(self, sample):
+        self.overview_state = OverViewState.deserialize(sample.payload) 
+        """ For testing and show in screen """
+        # print('battery_voltage: {} battery_capacity: {} battery_precentage: {} '.format(self.overview_state.battery_voltage, 
+                                                                                        # self.overview_state.battery_capacity, self.overview_state.battery_percentage))
+        
     def UWBStateListener(self, sample):
         self.uwb_state = UWBState.deserialize(sample.payload) 
         """ For testing and show in screen """
@@ -46,7 +52,8 @@ class ZenohTestLauncher():
         print("Initial Zenoh...")
         self.zenoh_session_ = zenoh.open(self.zenoh_config_)
         self.uwb_state_sub_ = self.zenoh_session_.declare_subscriber('{}/uwb_state'.format(self.input_prefix_), self.UWBStateListener)
-    
+        self.overview_state_sub_ = self.zenoh_session_.declare_subscriber('{}/overview_state'.format(self.input_prefix_), self.overviewStateListener)
+
     def closeStatusManager(self):
         self.uwb_state_sub_.undeclare()
         self.zenoh_session_.close()
