@@ -46,11 +46,13 @@ class BatteryState(IdlStruct, typename="BatteryState"):
 
 @dataclass
 class OverViewState(IdlStruct, typename="OverViewState"):
-    battery_voltage: float32
-    battery_capacity: float32
-    battery_percentage: float32
-    joint_name: List[str]
-    joint_velocity: List[float64]
+    battery_voltage: List[float32]
+    battery_capacity: List[float32]
+    battery_percentage: List[float32]
+    robot1_joint_name: List[str]
+    robot1_joint_velocity: List[float64]
+    robot2_joint_name: List[str]
+    robot2_joint_velocity: List[float64]
 
 @dataclass
 class UWBState(IdlStruct, typename="UWBState"):

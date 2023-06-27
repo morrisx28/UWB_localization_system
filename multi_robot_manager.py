@@ -25,12 +25,17 @@ class RobotStatusManager():
         self.joint_state_sub_ = None
         self.update_thread_enable_ = False
 
-        self.battery_state = None
-        self.joint_state = None
+        self.battery_state = []
+        self.r1_joint_state = None
+        self.r2_joint_state = None
         self.uwb_state = None
         self.is_uwb_master = is_uwb_master
+        self.robot_id = None
 
-        self.input_prefix_ = 'rt' #default setting
+        # self.input_prefix_ = 'rt' #default setting
+
+        self.input_prefix_list = ['rt/turtlebot1', 'rt/turtlebot2']
+        self.output_prefix_ = 'turtlebot'
         """ public definition """
 
         self.zenohInit()
@@ -60,27 +65,34 @@ class RobotStatusManager():
         if zenoh_arg.listen is not None:
             self.zenoh_config_.insert_json5(zenoh.config.LISTEN_KEY, json.dumps(zenoh_arg.listen))
 
-        if zenoh_arg.robot == 'turtlebot':
-            self.output_prefix_ = 'turtlebot' + zenoh_arg.id
+        # if zenoh_arg.robot == 'turtlebot':
+        #     self.output_prefix_ = 'turtlebot' + zenoh_arg.id
+        
+    
 
     
-    def batteryStateListener(self, sample):
-        self.battery_state = BatteryState.deserialize(sample.payload)
+    def r1batteryStateListener(self, sample):
+        self.battery_state[0] = BatteryState.deserialize(sample.payload)
         # print('[ voltage: {}, capacity: {}, percentage: {}]'.format(self.battery_state.voltage,
         #                                 self.battery_state.capacity, self.battery_state.percentage))
     
-    def jointStateListener(self, sample):
-        self.joint_state = JointStates.deserialize(sample.payload)
+    def r1jointStateListener(self, sample):
+        self.joint_state[0] = JointStates.deserialize(sample.payload)
         # print('[name: {}, velocity: {}]'.format(self.joint_state.name, self.joint_state.velocity))
     
+    def r2batteryStateListener(self, sample):
+        self.battery_state[1] = BatteryState.deserialize(sample.payload)
 
-    def getBatteryState(self) -> BatteryState:
-        if self.battery_state is not None:
-            return self.battery_state
+    def r2jointStateListener(self, sample):
+        self.joint_state[1] = JointStates.deserialize(sample.payload)
+
+    # def getBatteryState(self) -> BatteryState:
+    #     if self.battery_state is not None:
+    #         return self.battery_state
         
-    def getJointState(self) -> JointStates:
-        if self.joint_state is not None:
-            return self.joint_state
+    # def getJointState(self) -> JointStates:
+    #     if self.joint_state is not None:
+    #         return self.joint_state
         
     def pubUWBState(self):
         self.zenoh_session_.put('rt/{}/uwb_state'.format(self.output_prefix_), self.generateUWBState().serialize())
@@ -90,11 +102,16 @@ class RobotStatusManager():
 
 
     def generateOverViewState(self) -> OverViewState:
-        overview_state = OverViewState(battery_voltage = float32(self.battery_state.voltage),
-                                            battery_percentage = float32(self.battery_state.percentage),
-                                            battery_capacity = float32(self.battery_state.capacity),
-                                            joint_name = self.joint_state.name,
-                                            joint_velocity = self.joint_state.velocity)
+        voltage = [self.battery_state[0].voltage, self.battery_state[1].voltage]
+        percentage = [self.battery_state[0].percentage, self.battery_state[1].percentage]
+        capacity = [self.battery_state[0].capacity, self.battery_state[1].capacity]
+        overview_state = OverViewState(battery_voltage = voltage,
+                                        battery_percentage = percentage,
+                                        battery_capacity = capacity,
+                                        robot1_joint_name = self.r1_joint_state.name,
+                                        robot1_joint_velocity = self.r2_joint_state.velocity,
+                                        robot2_joint_name = self.r2_joint_state.name,
+                                        robot2_joint_velocity = self.r2_joint_state.velocity)
         print(overview_state)
         return overview_state
     
@@ -109,7 +126,7 @@ class RobotStatusManager():
         print("Robot Status Start Publish....")
         self.update_thread_enable_ = True
         while self.update_thread_enable_:
-            if self.battery_state is not None and self.joint_state is not None:
+            if self.r1_joint_state is not None and self.r2_joint_state is not None:
                 self.pubOverViewState()
             if self.is_uwb_master:
                 self.pubUWBState()
@@ -126,8 +143,10 @@ class RobotStatusManager():
 
         self.update_thread_enable = True
         self.zenoh_session_ = zenoh.open(self.zenoh_config_)
-        # self.battery_state_sub_ = self.zenoh_session_.declare_subscriber('{}/battery_state'.format(self.input_prefix_), self.batteryStateListener)
-        # self.joint_state_sub_ = self.zenoh_session_.declare_subscriber('{}/joint_states'.format(self.input_prefix_), self.jointStateListener)
+        self.r1_battery_state_sub_ = self.zenoh_session_.declare_subscriber('{}/battery_state'.format(self.input_prefix_list[0]), self.r1batteryStateListener)
+        self.r1_joint_state_sub_ = self.zenoh_session_.declare_subscriber('{}/joint_states'.format(self.input_prefix_list[0]), self.r1jointStateListener)
+        self.r2_battery_state_sub_ = self.zenoh_session_.declare_subscriber('{}/battery_state'.format(self.input_prefix_list[1]), self.r2batteryStateListener)
+        self.r2_joint_state_sub_ = self.zenoh_session_.declare_subscriber('{}/joint_states'.format(self.input_prefix_list[1]), self.r2jointStateListener)
         time.sleep(1) # wait for uwb system poll data
         self.thread_pub_status = threading.Thread(
             target=self.pubRobotStatus,
@@ -139,8 +158,10 @@ class RobotStatusManager():
     def closeStatusManager(self):
         if self.update_thread_enable_:
             self.update_thread_enable_ = False
-        # self.battery_state_sub_.undeclare()
-        # self.joint_state_sub_.undeclare()
+        self.r1_battery_state_sub_.undeclare()
+        self.r1_joint_state_sub_.undeclare()
+        self.r2_battery_state_sub_.undeclare()
+        self.r2_joint_state_sub_.undeclare()
         self.uwb_system.closeSystem()
         self.zenoh_session_.close()
     
