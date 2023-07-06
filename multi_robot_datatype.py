@@ -49,10 +49,8 @@ class OverViewState(IdlStruct, typename="OverViewState"):
     battery_voltage: List[float32]
     battery_capacity: List[float32]
     battery_percentage: List[float32]
-    robot1_joint_name: List[str]
-    robot1_joint_velocity: List[float64]
-    robot2_joint_name: List[str]
-    robot2_joint_velocity: List[float64]
+    joint_name: List[List[str]]
+    joint_velocity: List[List[float64]]
 
 @dataclass
 class UWBState(IdlStruct, typename="UWBState"):
@@ -72,3 +70,15 @@ class PoseStamped(IdlStruct, typename="PoseStemped"):
     quat_y: float64
     quat_z: float64
     quat_w: float64
+
+@dataclass
+class Vector3(IdlStruct, typename="Vector3"):
+    x: float64
+    y: float64
+    z: float64
+
+
+@dataclass
+class Twist(IdlStruct, typename="Twist"):
+    linear: Vector3
+    angular: Vector3
