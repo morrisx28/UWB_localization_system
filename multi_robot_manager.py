@@ -13,13 +13,8 @@ import time
 from multi_robot_datatype import BatteryState, OverViewState, JointStates, UWBState, Vector3, Twist
 from uwb_manager import UWBLocalizationSystem
 import socket
-
-class UnityCMD():
-
-    def __init__(self):
-        self.robot_id = 0
-        self.linear_cmd = 0
-        self.angular_cmd = 0
+import numpy as np
+from SocketDatatype import UnityCMD
 
 class SocketClient():
 
@@ -31,6 +26,7 @@ class SocketClient():
         self.server_address = addr
         self.server_port = port
         self.connection_success = False
+        self.force_quit = False 
         self.DEFAULT_LEN = 70
 
         self.unity_info = UnityCMD()
@@ -43,12 +39,12 @@ class SocketClient():
                 self.unity_socket.connect((self.server_address, self.server_port))
                 print("Successful Connect to Unity Server")
                 self.connection_success = True
-                self.processData()
+                self.process_client_thread = threading.Thread(target=self.processData)
             except ConnectionRefusedError:
                 self.connection_success = False
     
     def processData(self):
-        while True:
+        while not self.force_quit:
             msg_data = self.unity_socket.recv(2048)
             if len(msg_data) < self.DEFAULT_LEN:
                 self.decodeData(msg_data)
@@ -66,6 +62,10 @@ class SocketClient():
 
     def getCMDInfo(self):
         return self.unity_info
+    
+    def terminateClient(self):
+        if self.process_client_thread.is_alive():
+            self.force_quit = True
     
     def closeSocketServer(self):
         self.unity_socket.close()
@@ -258,19 +258,17 @@ class RobotStatusManager():
 
 if __name__ == "__main__":
 
-    server_ip = "192.168.46.196"
+    server_ip = "192.168.46.215"
     server_port = 8000
     manager = SocketClient(server_ip, server_port)
-    # manager = RobotStatusManager(False, robot_num=2)
-    # manager.activeStatusManager()
 
-    # while True:
-    #     try:
-    #         cmd = input("CMD: ")
-    #         if cmd == "q":
-    #             break
-    #     except Exception as e:
-    #         traceback.print_exc()
-    #         break
+    while True:
+        try:
+            cmd = input("CMD: ")
+            if cmd == "q":
+                manager.terminateClient()
+                break
+        except Exception as e:
+            traceback.print_exc()
+            break
     manager.closeSocketServer()
-    # manager.closeStatusManager()
