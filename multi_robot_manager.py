@@ -14,22 +14,29 @@ from multi_robot_datatype import BatteryState, OverViewState, JointStates, UWBSt
 from uwb_manager import UWBLocalizationSystem
 import socket
 import numpy as np
-from SocketDatatype import UnityCMD
+import pickle
+
+class RobotPickle():
+    def __init__(self, id ,linear, angular):
+        self.ID = id
+        self.Linear = linear
+        self.Angular = angular
 
 class SocketClient():
 
     def __init__(self, addr, port):
 
-        self.robot_manager = RobotStatusManager(False, robot_num=2)
+        self.robot_manager = RobotStatusManager(False, robot_num=1)
         self.robot_manager.activeStatusManager()
 
         self.server_address = addr
         self.server_port = port
         self.connection_success = False
-        self.force_quit = False 
-        self.DEFAULT_LEN = 70
+        self.DEFAULT_LEN = 100
+        self.force_quit = False
+        self.process_thread = threading.Thread()
 
-        self.unity_info = UnityCMD()
+        self.server_cmd = None
         self.connectToServer()
     
     def connectToServer(self):
@@ -39,7 +46,8 @@ class SocketClient():
                 self.unity_socket.connect((self.server_address, self.server_port))
                 print("Successful Connect to Unity Server")
                 self.connection_success = True
-                self.process_client_thread = threading.Thread(target=self.processData)
+                self.process_thread = threading.Thread(target=self.processData, daemon=True)
+                self.process_thread.start()
             except ConnectionRefusedError:
                 self.connection_success = False
     
@@ -48,26 +56,18 @@ class SocketClient():
             msg_data = self.unity_socket.recv(2048)
             if len(msg_data) < self.DEFAULT_LEN:
                 self.decodeData(msg_data)
-                self.robot_manager.sendRobotCMD(self.unity_info)
+                self.robot_manager.sendRobotCMD(self.server_cmd)
     
     def decodeData(self, msg_data):
-        data = json.loads(msg_data.decode('utf-8'))
-        robot_id = data.get('ID')
-        l_cmd = data.get('Linear')
-        a_cmd = data.get('Angular')
-        print("ID: {} linear_cmd: {} angular_cmd: {}".format(robot_id, l_cmd, a_cmd))
-        self.unity_info.robot_id = robot_id
-        self.unity_info.linear_cmd = l_cmd
-        self.unity_info.angular_cmd = a_cmd
+        server_data = pickle.loads(msg_data)
+        print("ID {} L_cmd {} A_cmd {} ".format(server_data.ID, server_data.Linear, server_data.Angular))
+        self.server_cmd = server_data
 
     def getCMDInfo(self):
-        return self.unity_info
-    
-    def terminateClient(self):
-        if self.process_client_thread.is_alive():
-            self.force_quit = True
+        return self.server_cmd
     
     def closeSocketServer(self):
+        self.force_quit = True
         self.unity_socket.close()
         self.robot_manager.closeStatusManager()
 
@@ -86,7 +86,7 @@ class TurtlebotState():
         self.joint_state_sub_ = None
 
         self.zenoh_session = zenoh.open(zenoh_config)
-        self.createTopicSub()
+        # self.createTopicSub()
 
     def createTopicSub(self):
         self.battery_state_sub_ = self.zenoh_session.declare_subscriber('{}/battery_state'.format(self.input_prefix), self.batteryStateListener)
@@ -94,8 +94,8 @@ class TurtlebotState():
     
     def pubTwistCMD(self, linear_cmd, angular_cmd):
         cmd_topic = self.input_prefix + '/cmd_vel'
-        cmd = Twist(linear= Vector3(x=linear_cmd, y=0.0, z=0.0),
-                    angular=Vector3(x=0.0, y=0.0, z=angular_cmd))
+        cmd = Twist(linear= Vector3(x=linear_cmd / 5, y=0.0, z=0.0),
+                    angular=Vector3(x=0.0, y=0.0, z=angular_cmd / 2))
         self.zenoh_session.put(cmd_topic, cmd.serialize())
 
     def batteryStateListener(self, sample):
@@ -240,8 +240,10 @@ class RobotStatusManager():
         self.thread_pub_status.start()
     
     def sendRobotCMD(self, cmd):
-        if cmd.robot_id != -1:
-            self.turtlebot_list[cmd.robot_id].pubTwistCMD(cmd.linear_cmd, cmd.angular_cmd)
+        if cmd is not None:
+            print("ID {} linear {} angular {}".format(cmd.ID, cmd.Linear, cmd.Angular))
+            if cmd.ID < self.MAX_ROBOT_NUM:
+                self.turtlebot_list[cmd.ID].pubTwistCMD(cmd.Linear, cmd.Angular)
         else:
             for id in range(self.MAX_ROBOT_NUM):
                 self.turtlebot_list[id].pubTwistCMD(0, 0)
@@ -258,7 +260,7 @@ class RobotStatusManager():
 
 if __name__ == "__main__":
 
-    server_ip = "192.168.46.215"
+    server_ip = "192.168.100.65"
     server_port = 8000
     manager = SocketClient(server_ip, server_port)
 
@@ -266,9 +268,9 @@ if __name__ == "__main__":
         try:
             cmd = input("CMD: ")
             if cmd == "q":
-                manager.terminateClient()
                 break
         except Exception as e:
             traceback.print_exc()
             break
     manager.closeSocketServer()
+    # manager.closeStatusManager()
